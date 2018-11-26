@@ -2,6 +2,7 @@
 from random import randint
 import time
 import math
+import json
 
 #the programmer wrote body_list = [] (as a global var)
 #__CRITICAL__
@@ -12,13 +13,18 @@ def _VAR_body_list(op, old_hash):
 		_VAR_body_list.hash_body_list=hash(str(_VAR_body_list.body_list))
 	if op == None:
 		if old_hash == _VAR_body_list.hash_body_list:
+			#print("GET BODY_LIST: No hay cambios",old_hash,_VAR_body_list.hash_body_list)
 			return None
 		else:
-			return eval("_VAR_body_list.body_list")
+			#return eval("_VAR_body_list.body_list")
+			return json.dumps(_VAR_body_list.body_list)
 	else:
 		try:
-			return eval(op)
+			eval(op)
+			_VAR_body_list.hash_body_list=hash(str(_VAR_body_list.body_list))
+			return _VAR_body_list.hash_body_list
 		except:
+			#print(op, "No se puede evaluar")
 			exec(op)
 			_VAR_body_list.hash_body_list=hash(str(_VAR_body_list.body_list))
 			return _VAR_body_list.hash_body_list
@@ -49,22 +55,29 @@ def compute_body(single_body, iteration):
 		compute_body.body_list = []#_VAR_body_list(None,hash(str(None)))
         
 	aux = _VAR_body_list(None,hash(str(compute_body.body_list)))
+	#print("AUX: ", aux)
 	if aux != None:
-                compute_body_list.body_list = aux
+		compute_body.body_list = json.loads(aux)
+        #print("LA lista es distinta y hemos hecho load")
+    #-------------------------------------------------
+	single_body = json.loads(single_body)
+	#print("LLega: ", single_body)
     # ------------------------------------------------------
 	#calculation
+	#print("CB_BODY_LIST: ",compute_body.body_list)
 	fx=0.0
 	fy=0.0
 	for i in compute_body.body_list:
+		#print("i",i)
 		delta_f = compute_contribution_force(single_body,i)
 		fx = fx+delta_f[0]
 		fy = fy+delta_f[1]
-	ax = fx/single_body[0]
-	ay = fy/single_body[0]
-	vx = single_body[3]+ax
-	vy = single_body[4]+ay
-	x = single_body[1]+vx
-	y = single_body[2]+vy
+	ax = fx/float(single_body[0])
+	ay = fy/float(single_body[0])
+	vx = float(single_body[3])+ax
+	vy = float(single_body[4])+ay
+	x = float(single_body[1])+vx
+	y = float(single_body[2])+vy
 	
 	
 	new_single_body = (single_body[0],x,y,vx,vy)
@@ -121,7 +134,7 @@ def compute_contribution_force(bodyA, bodyB):
 
 #The programmer wrote const_N = 1000	
 def _CONST_N():
-	return 100000 #number of bodies
+	return 1000 #number of bodies
 
 def main():
 #tenemos que manejar las variables globales y constantes globales en main como hacemos en el resto de funciones
@@ -135,7 +148,8 @@ def main():
 	VX_MAX = 10
 	VY_MAX = 10
 	N = _CONST_N()
-	for i in range(_CONST_N()):
+	print("Construyendo la lista...")
+	for i in range(_CONST_N()):	
 		m = 10 #mass
 		x = randint(-X_MAX,X_MAX)
 		y = randint(-Y_MAX,Y_MAX)
@@ -145,9 +159,9 @@ def main():
 
 	for j in range(MAX_ITERATIONS):
 		print("starting iteration", j)
-		for i in _VAR_body_list(None,hash(str("0"))):
+		for i in json.loads(_VAR_body_list(None,hash(str("0")))):
 			#__NONBLOCKING__
-			f = compute_body(i,j)
+			f = compute_body(json.dumps(i),j)
 			
 			#body_new.append((i[0],x,y,vx,vy))
 		#pointer commutation
@@ -155,10 +169,10 @@ def main():
 		while _VAR_body_new("len(_VAR_body_new.body_new)") < _CONST_N():
 			time.sleep(.1)
 		aux = _VAR_body_list(None,hash(0))
-		if (aux ==None ) :
+		'''if (aux ==None ) :
 			print "aux=none"
 		else:
-			print "aux= algo"
+			print "aux= algo"'''
 
 		body = _VAR_body_new(None)
 		_VAR_body_new("_VAR_body_new.body_new = []")
