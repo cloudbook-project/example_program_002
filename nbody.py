@@ -6,7 +6,7 @@ import json
 
 #the programmer wrote body_list = [] (as a global var)
 #__CRITICAL__
-def _VAR_body_list(op, old_ver = None):
+def _VAR_body_list(op, old_ver):
 	if not hasattr(_VAR_body_list, "body_list"):
 		_VAR_body_list.body_list=[]
 	if not hasattr(_VAR_body_list, "ver_body_list"):
@@ -14,20 +14,20 @@ def _VAR_body_list(op, old_ver = None):
 	if op == None:
 		if old_ver == _VAR_body_list.ver_body_list:
 			#print("GET BODY_LIST: No hay cambios",old_ver,_VAR_body_list.hash_body_list)
-			return None
+			return (None, old_ver)
 		else:
 			#return eval("_VAR_body_list.body_list")
-			return json.dumps(_VAR_body_list.body_list)
+			return (json.dumps(_VAR_body_list.body_list),_VAR_body_list.ver_body_list)
 	else:
 		try:
 			#eval(op)
 			_VAR_body_list.ver_body_list+=1
-			return eval(op)
+			return (eval(op),_VAR_body_list.ver_body_list)
 		except:
 			#print(op, "No se puede evaluar")
 			exec(op)
 			_VAR_body_list.ver_body_list+=1
-			return "done"
+			return ("done",_VAR_body_list.ver_body_list)
 
 #the programmer wrote body_new = [] (as a global var)
 #__CRITICAL__
@@ -55,6 +55,19 @@ def _VAR_body_new(op,old_ver = None):
 
 #Computebody access to global var body_list.
 #global vars are cached and before read its changes are checked 
+
+#Nonblocking invocation controller
+def _SYNC_compute_body(op, old_ver = None):
+	if not hasattr(_SYNC_compute_body, "termination_list"):
+		_SYNC_compute_body.termination_list=0
+	if op == None:
+		return json.dumps(_SYNC_compute_body.termination_list)
+	if op == "increase":
+		_SYNC_compute_body.termination_list+=1
+	if op == "decrease":
+		_SYNC_compute_body.termination_list-=1
+
+
 #__IDEMPOTENT__
 def compute_body(single_body, iteration):
 	#print("Enter in computebody")
@@ -63,8 +76,10 @@ def compute_body(single_body, iteration):
 	# como mucho una vez al comienzo de la funcion ( si ha cambiado)
 	if not hasattr(compute_body, "body_list"):
 		compute_body.body_list = []#_VAR_body_list(None,hash(str(None)))
+	if not hasattr(compute_body, "ver_body_list"):
+		compute_body.ver_body_list = 0
         
-	aux = _VAR_body_list(None)
+	aux = _VAR_body_list(None,compute_body.ver_body_list)[0]
 	#print("AUX: ", aux)
 	if aux != None:
 		compute_body.body_list = json.loads(aux)
@@ -73,6 +88,7 @@ def compute_body(single_body, iteration):
 	single_body = json.loads(single_body)
 	#print("LLega: ", single_body)
     # ------------------------------------------------------
+	_SYNC_compute_body("increase")
 	#calculation
 	#print("CB_BODY_LIST: ",compute_body.body_list)
 	fx=0.0
@@ -87,14 +103,11 @@ def compute_body(single_body, iteration):
 	vx = float(single_body[3])+ax
 	vy = float(single_body[4])+ay
 	x = float(single_body[1])+vx
-	y = float(single_body[2])+vy
-	
+	y = float(single_body[2])+vy	
 	
 	new_single_body = (single_body[0],x,y,vx,vy)
-	#print("@Computation body done", x)
-	#insert_body(new_single_body)
 	_VAR_body_new("_VAR_body_new.body_new.append("+str(new_single_body)+")")
-	#print("Exit from computebody")
+	_SYNC_compute_body("decrease")
 
 #__IDEMPOTENT__
 def compute_contribution_force(bodyA, bodyB):
@@ -138,8 +151,11 @@ def main():
 	#body_list
 	if not hasattr(main, "body_list"):
 		main.body_list = []#_VAR_body_list(None,hash(str(None)))
+
+	if not hasattr(main, "ver_body_list"):
+		main.ver_body_list = 0#_VAR_body_list(None,hash(str(None)))
         
-	aux_body_list = _VAR_body_list(None)
+	aux_body_list = _VAR_body_list(None,main.ver_body_list)[0]
 	if aux_body_list != None:
 		main.body_list = json.loads(aux_body_list)
 	#body_new
@@ -164,23 +180,20 @@ def main():
 		y = randint(-Y_MAX,Y_MAX)
 		vx = randint(-VX_MAX,VX_MAX)
 		vy = randint(-VY_MAX,VY_MAX)
-		_VAR_body_list("_VAR_body_list.body_list.append(("+str(m)+","+str(x)+","+str(y)+","+str(vx)+","+str(vy)+"))")
+		_VAR_body_list("_VAR_body_list.body_list.append(("+str(m)+","+str(x)+","+str(y)+","+str(vx)+","+str(vy)+"))",main.ver_body_list)
+		main.body_list.append((m,x,y,vx,vy))	
 
 	for j in range(MAX_ITERATIONS):
 		print("starting iteration", j)
 		#TODO esto esta mal, porque se supone que esta cacheado deberia ser main.body_list
-		for i in json.loads(_VAR_body_list(None)):
+		for i in main.body_list:#json.loads(_VAR_body_list(None,main.body_list)[0]):
 			#print("Entrando en bucle de compute body")
 			#__NONBLOCKING__
-			f = compute_body(json.dumps(i),j)#this will be f = invoke("compute_body(json.dumps(i),j)",[du_3,_du4,..,du_n],) or similar
-			
-		while _VAR_body_new("len(_VAR_body_new.body_new)") < _CONST_N():
+			compute_body(json.dumps(i),j)#this will be f = invoke("compute_body(json.dumps(i),j)",[du_3,_du4,..,du_n],) or similar
+
+		#print("El contador vale",_SYNC_compute_body(None))
+		while _SYNC_compute_body(None) != '0':
 			time.sleep(.1)
-		#aux = _VAR_body_list(None,hash(str("0")))
-		'''if (aux ==None ) :
-			print "aux=none"
-		else:
-			print "aux= algo"'''
 
 		main.body_list = json.loads(_VAR_body_new(None))
 		_VAR_body_new("_VAR_body_new.body_new = []")

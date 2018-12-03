@@ -26,8 +26,7 @@ def compute_body(single_body, iteration):
 	vx = float(single_body[3])+ax
 	vy = float(single_body[4])+ay
 	x = float(single_body[1])+vx
-	y = float(single_body[2])+vy
-	
+	y = float(single_body[2])+vy	
 	
 	new_single_body = (single_body[0],x,y,vx,vy)
 	body_new.append(new_single_body)
@@ -88,7 +87,7 @@ def main():
 		print("starting iteration", j)
 		for i in body_list:
 			#__NONBLOCKING__
-			f = compute_body(i,j)
+			compute_body(i,j)
 
 		#aux = body_list
 		body_list = body_new
