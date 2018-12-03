@@ -13,7 +13,7 @@ def _VAR_body_list(op, old_ver = None):
 		_VAR_body_list.ver_body_list=0
 	if op == None:
 		if old_ver == _VAR_body_list.ver_body_list:
-			#print("GET BODY_LIST: No hay cambios",old_hash,_VAR_body_list.hash_body_list)
+			#print("GET BODY_LIST: No hay cambios",old_ver,_VAR_body_list.hash_body_list)
 			return None
 		else:
 			#return eval("_VAR_body_list.body_list")
@@ -31,26 +31,26 @@ def _VAR_body_list(op, old_ver = None):
 
 #the programmer wrote body_new = [] (as a global var)
 #__CRITICAL__
-def _VAR_body_new(op,old_hash = None):
+def _VAR_body_new(op,old_ver = None):
 	#Tenemos pendiente dejar esta vble global como body_list (hacer lo del hash)
 	if not hasattr(_VAR_body_new, "body_new"):
 		_VAR_body_new.body_new=[]
-	if not hasattr(_VAR_body_new, "hash_body_new"):
-		_VAR_body_new.hash_body_new=hash(str(_VAR_body_new.body_new))
+	if not hasattr(_VAR_body_new, "ver_body_new"):
+		_VAR_body_new.ver_body_new=0
 	if op == None:
-		if old_hash == _VAR_body_new.hash_body_new:
+		if old_ver == _VAR_body_new.ver_body_new:
 			return None
 		else:
 			return json.dumps(_VAR_body_new.body_new)#eval("_VAR_body_new.body_new")
 	else:
 		try:
 			#eval(op)
-			_VAR_body_new.hash_body_new=hash(str(_VAR_body_new.body_new))
+			_VAR_body_new.ver_body_new+=1
 			return eval(op)
 		except:
 			#print(op, "No se puede evaluar")
 			exec(op)
-			_VAR_body_new.hash_body_new=hash(str(_VAR_body_new.body_new))
+			_VAR_body_new.ver_body_new+=1
 			return "done"
 
 #Computebody access to global var body_list.

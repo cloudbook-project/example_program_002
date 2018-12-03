@@ -89,9 +89,7 @@ def main():
 		for i in body_list:
 			#__NONBLOCKING__
 			f = compute_body(i,j)
-			
-		while len(body_new) < CONST_N:
-			time.sleep(.1)
+
 		#aux = body_list
 		body_list = body_new
 		body_new = []
