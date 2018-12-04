@@ -31,7 +31,7 @@ def _VAR_body_list(op, old_ver):
 
 #the programmer wrote body_new = [] (as a global var)
 #__CRITICAL__
-def _VAR_body_new(op,old_ver = None):
+def _VAR_body_new(op,old_ver):
 	#Tenemos pendiente dejar esta vble global como body_list (hacer lo del hash)
 	if not hasattr(_VAR_body_new, "body_new"):
 		_VAR_body_new.body_new=[]
@@ -39,19 +39,19 @@ def _VAR_body_new(op,old_ver = None):
 		_VAR_body_new.ver_body_new=0
 	if op == None:
 		if old_ver == _VAR_body_new.ver_body_new:
-			return None
+			return (None, old_ver)
 		else:
-			return json.dumps(_VAR_body_new.body_new)#eval("_VAR_body_new.body_new")
+			return (json.dumps(_VAR_body_new.body_new),_VAR_body_new.ver_body_new)
 	else:
 		try:
 			#eval(op)
 			_VAR_body_new.ver_body_new+=1
-			return eval(op)
+			return (eval(op),_VAR_body_new.ver_body_new)
 		except:
 			#print(op, "No se puede evaluar")
 			exec(op)
 			_VAR_body_new.ver_body_new+=1
-			return "done"
+			return ("done",_VAR_body_new.ver_body_new)
 
 #Computebody access to global var body_list.
 #global vars are cached and before read its changes are checked 
@@ -84,6 +84,17 @@ def compute_body(single_body, iteration):
 	if aux != None:
 		compute_body.body_list = json.loads(aux)
         #print("LA lista es distinta y hemos hecho load")
+
+    #body_new
+	if not hasattr(compute_body, "body_new"):
+		compute_body.body_new = []#_VAR_body_new(None,hash(str(None)))
+
+	if not hasattr(compute_body, "ver_body_new"):
+		compute_body.ver_body_new = 0#_VAR_body_list(None,hash(str(None)))
+        
+	aux_body_new = _VAR_body_new(None,compute_body.ver_body_new)[0]
+	if aux_body_new != None:
+		compute_body.body_new = json.loads(aux_body_new)
     #-------------------------------------------------
 	single_body = json.loads(single_body)
 	#print("LLega: ", single_body)
@@ -106,7 +117,8 @@ def compute_body(single_body, iteration):
 	y = float(single_body[2])+vy	
 	
 	new_single_body = (single_body[0],x,y,vx,vy)
-	_VAR_body_new("_VAR_body_new.body_new.append("+str(new_single_body)+")")
+	_VAR_body_new("_VAR_body_new.body_new.append("+str(new_single_body)+")",compute_body.ver_body_new)
+	compute_body.body_new.append(new_single_body)
 	_SYNC_compute_body("decrease")
 
 #__IDEMPOTENT__
@@ -161,8 +173,11 @@ def main():
 	#body_new
 	if not hasattr(main, "body_new"):
 		main.body_new = []#_VAR_body_new(None,hash(str(None)))
+
+	if not hasattr(main, "ver_body_new"):
+		main.ver_body_new = 0#_VAR_body_list(None,hash(str(None)))
         
-	aux_body_new = _VAR_body_new(None,hash(str(main.body_new)))
+	aux_body_new = _VAR_body_new(None,main.ver_body_new)[0]
 	if aux_body_new != None:
 		main.body_new = json.loads(aux_body_new)
 
@@ -195,8 +210,8 @@ def main():
 		while _SYNC_compute_body(None) != '0':
 			time.sleep(.1)
 
-		main.body_list = json.loads(_VAR_body_new(None))
-		_VAR_body_new("_VAR_body_new.body_new = []")
+		main.body_list = json.loads(_VAR_body_new(None,main.ver_body_new)[0])
+		_VAR_body_new("_VAR_body_new.body_new = []",main.ver_body_new)
 		print("iteration ", j, " executed")
 
 main()
