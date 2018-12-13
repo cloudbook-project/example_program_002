@@ -3,40 +3,45 @@ from random import randint
 import time
 import math
 import json
+import threading
 
-#the programmer wrote body_list = [] (as a global var)
+
+#__CRITICAL__
+def _CONST_N():
+	return 100 #number of bodies
+
 #__CRITICAL__
 def _VAR_body_list(op, old_ver):
 	if not hasattr(_VAR_body_list, "body_list"):
 		_VAR_body_list.body_list=[]
 	if not hasattr(_VAR_body_list, "ver_body_list"):
 		_VAR_body_list.ver_body_list=0
+	if not hasattr(_VAR_body_list, "lock_body_list"):
+		_VAR_body_list.lock_body_list = threading.Lock()
 	if op == None:
 		if old_ver == _VAR_body_list.ver_body_list:
-			#print("GET BODY_LIST: No hay cambios",old_ver,_VAR_body_list.hash_body_list)
 			return (None, old_ver)
 		else:
-			#return eval("_VAR_body_list.body_list")
 			return (json.dumps(_VAR_body_list.body_list),_VAR_body_list.ver_body_list)
 	else:
 		try:
-			#eval(op)
 			_VAR_body_list.ver_body_list+=1
 			return (eval(op),_VAR_body_list.ver_body_list)
 		except:
-			#print(op, "No se puede evaluar")
-			exec(op)
-			_VAR_body_list.ver_body_list+=1
-			return ("done",_VAR_body_list.ver_body_list)
+			with lock_body_list:
+				exec(op)
+				_VAR_body_list.ver_body_list+=1
+				return ("done",_VAR_body_list.ver_body_list)
 
-#the programmer wrote body_new = [] (as a global var)
 #__CRITICAL__
+cosa = threading.Lock()
 def _VAR_body_new(op,old_ver):
-	#Tenemos pendiente dejar esta vble global como body_list (hacer lo del hash)
 	if not hasattr(_VAR_body_new, "body_new"):
 		_VAR_body_new.body_new=[]
 	if not hasattr(_VAR_body_new, "ver_body_new"):
 		_VAR_body_new.ver_body_new=0
+	if not hasattr(_VAR_body_new, "lock_body_new"):
+		_VAR_body_new.lock_body_new = threading.Lock()
 	if op == None:
 		if old_ver == _VAR_body_new.ver_body_new:
 			return (None, old_ver)
@@ -44,19 +49,15 @@ def _VAR_body_new(op,old_ver):
 			return (json.dumps(_VAR_body_new.body_new),_VAR_body_new.ver_body_new)
 	else:
 		try:
-			#eval(op)
 			_VAR_body_new.ver_body_new+=1
 			return (eval(op),_VAR_body_new.ver_body_new)
 		except:
-			#print(op, "No se puede evaluar")
-			exec(op)
-			_VAR_body_new.ver_body_new+=1
-			return ("done",_VAR_body_new.ver_body_new)
+			with _VAR_body_new.lock_body_new:
+				exec(op)
+				_VAR_body_new.ver_body_new+=1
+				return ("done",_VAR_body_new.ver_body_new)
 
-#Computebody access to global var body_list.
-#global vars are cached and before read its changes are checked 
-
-#Nonblocking invocation controller
+#Nonblocking invocation synchronizer
 def _SYNC_compute_body(op, old_ver = None):
 	if not hasattr(_SYNC_compute_body, "termination_list"):
 		_SYNC_compute_body.termination_list=0
@@ -70,42 +71,30 @@ def _SYNC_compute_body(op, old_ver = None):
 
 #__IDEMPOTENT__
 def compute_body(single_body, iteration):
-	#print("Enter in computebody")
 	# ---------------- AUTOMATED  CODE --------------------
-	# el acceso a variables globales se cachea y solo se lee 
-	# como mucho una vez al comienzo de la funcion ( si ha cambiado)
 	if not hasattr(compute_body, "body_list"):
-		compute_body.body_list = []#_VAR_body_list(None,hash(str(None)))
+		compute_body.body_list = []
 	if not hasattr(compute_body, "ver_body_list"):
 		compute_body.ver_body_list = 0
-        
 	aux = _VAR_body_list(None,compute_body.ver_body_list)[0]
-	#print("AUX: ", aux)
 	if aux != None:
 		compute_body.body_list = json.loads(aux)
-        #print("LA lista es distinta y hemos hecho load")
 
-    #body_new
 	if not hasattr(compute_body, "body_new"):
-		compute_body.body_new = []#_VAR_body_new(None,hash(str(None)))
-
+		compute_body.body_new = []
 	if not hasattr(compute_body, "ver_body_new"):
-		compute_body.ver_body_new = 0#_VAR_body_list(None,hash(str(None)))
-        
+		compute_body.ver_body_new = 0        
 	aux_body_new = _VAR_body_new(None,compute_body.ver_body_new)[0]
 	if aux_body_new != None:
 		compute_body.body_new = json.loads(aux_body_new)
-    #-------------------------------------------------
+
 	single_body = json.loads(single_body)
-	#print("LLega: ", single_body)
-    # ------------------------------------------------------
+
 	_SYNC_compute_body("increase")
-	#calculation
-	#print("CB_BODY_LIST: ",compute_body.body_list)
+	# ------------------------------------------------------
 	fx=0.0
 	fy=0.0
 	for i in compute_body.body_list:
-		#print("i",i)
 		delta_f = compute_contribution_force(single_body,i)
 		fx = fx+delta_f[0]
 		fy = fy+delta_f[1]
@@ -153,29 +142,24 @@ def compute_contribution_force(bodyA, bodyB):
 
 	return (fx,fy)
 
-
-#The programmer wrote const_N = 1000	
-def _CONST_N():
-	return 100 #number of bodies
-
 def main():
 	#============================global vars automatic code=========================
 	#body_list
 	if not hasattr(main, "body_list"):
-		main.body_list = []#_VAR_body_list(None,hash(str(None)))
+		main.body_list = []
 
 	if not hasattr(main, "ver_body_list"):
-		main.ver_body_list = 0#_VAR_body_list(None,hash(str(None)))
+		main.ver_body_list = 0
         
 	aux_body_list = _VAR_body_list(None,main.ver_body_list)[0]
 	if aux_body_list != None:
 		main.body_list = json.loads(aux_body_list)
 	#body_new
 	if not hasattr(main, "body_new"):
-		main.body_new = []#_VAR_body_new(None,hash(str(None)))
+		main.body_new = []
 
 	if not hasattr(main, "ver_body_new"):
-		main.ver_body_new = 0#_VAR_body_list(None,hash(str(None)))
+		main.ver_body_new = 0
         
 	aux_body_new = _VAR_body_new(None,main.ver_body_new)[0]
 	if aux_body_new != None:
@@ -200,18 +184,19 @@ def main():
 
 	for j in range(MAX_ITERATIONS):
 		print("starting iteration", j)
-		#TODO esto esta mal, porque se supone que esta cacheado deberia ser main.body_list
-		for i in main.body_list:#json.loads(_VAR_body_list(None,main.body_list)[0]):
-			#print("Entrando en bucle de compute body")
+		for i in main.body_list:
 			#__NONBLOCKING__
 			compute_body(json.dumps(i),j)#this will be f = invoke("compute_body(json.dumps(i),j)",[du_3,_du4,..,du_n],) or similar
 
-		#print("El contador vale",_SYNC_compute_body(None))
 		while _SYNC_compute_body(None) != '0':
 			time.sleep(.1)
 
-		main.body_list = json.loads(_VAR_body_new(None,main.ver_body_new)[0])
+		##main.body_list = json.loads(_VAR_body_new(None,main.ver_body_new)[0])
+		##main.ver_body_new = _VAR_body_new(None,main.ver_body_new)[1]
+		main.body_list, main.ver_body_new = _VAR_body_new(None,main.ver_body_new)
+		main.body_list = json.loads(main.body_list)		
 		_VAR_body_new("_VAR_body_new.body_new = []",main.ver_body_new)
+		main.body_new = []
 		print("iteration ", j, " executed")
 
 main()
